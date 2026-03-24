@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time ECG Monitoring System | ADS1299 Universal Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1a1a1a;
+            --bg-card: #1e1e1e;
+            --border-color: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888;
+            --text-muted: #555;
+            --accent-green: #00ff88;
+            --accent-green-dim: #00cc6a;
+            --accent-red: #ff4444;
+            --accent-yellow: #ffcc00;
+            --accent-blue: #00aaff;
+            --accent-purple: #aa66ff;
+            --accent-orange: #ff8800;
+            --accent-cyan: #00dddd;
+            --accent-pink: #ff66aa;
+            --grid-color: #1a2a1a;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent-green);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-title .subtitle {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        select, input[type="text"], input[type="number"] {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent-green);
+        }
+
+        .btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: var(--bg-card);
+            border-color: var(--accent-green);
+        }
+
+        .btn-primary {
+            background: var(--accent-green);
+            color: #000;
+            border-color: var(--accent-green);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-green-dim);
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            color: #fff;
+            border-color: var(--accent-red);
+        }
+
+        .btn-danger:hover {
+            opacity: 0.8;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-red);
+        }
+
+        .status-dot.connected {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .status-text {
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .sps-display {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--accent-green);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: var(--accent-green);
+        }
+
+        .time-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--accent-green);
+            background: var(--bg-tertiary);
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            position: relative;
+            grid-template-columns: 220px 1fr 360px;
+            grid-template-rows: 1fr auto;
+            gap: 0;
+            height: calc(100vh - 60px);
+        }
+
+        .panel {
+            min-width: 0;
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            background: var(--bg-tertiary);
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-green);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .panel-content {
+            padding: 15px;
+        }
+
+        /* Left Panel - Configuration */
+        .left-panel {
+            grid-row: 1 / 3;
+        }
+
+        .config-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .config-card-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            border-radius: 6px 6px 0 0;
+        }
+
+        .config-card-body {
+            padding: 12px;
+        }
+
+        .config-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .config-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .config-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+            background: #000;
+        }
+
+        .channel-toggles {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .channel-btn {
+            padding: 6px;
+            font-size: 10px;
+            text-align: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .channel-btn.active {
+            background: var(--accent-green);
+            color: #000;
+            border-color: var(--accent-green);
+        }
+
+        .lead-off-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .lead-off-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }
+
+        .lead-off-dot.warning {
+            background: var(--accent-yellow);
+        }
+
+        .lead-off-dot.error {
+            background: var(--accent-red);
+        }
+
+        /* Center Panel - Signal Viewer (OpenBCI Style) */
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .signal-viewer {
+            flex: 1;
+            position: relative;
+            background: #000000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .signal-canvas-container {
+            position: relative;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel-row {
+            flex: 1 1 0;
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid rgba(50, 50, 50, 0.8);
+            position: relative;
+            min-height: 60px;
+        }
+
+        .channel-row:last-child {
+            border-bottom: none;
+        }
+
+        .channel-label {
+            width: 100px;
+            min-width: 100px;
+            padding: 6px 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 2px;
+            background: linear-gradient(90deg, #0d0d0d 0%, #080808 100%);
+            border-right: 2px solid #1a1a1a;
+            position: relative;
+        }
+
+        .channel-label::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10%;
+            height: 80%;
+            width: 1px;
+            background: linear-gradient(180deg, transparent, rgba(0, 255, 136, 0.3), transparent);
+        }
+
+        .channel-number {
+            font-size: 10px;
+            font-weight: 400;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .channel-name {
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .channel-value {
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .channel-scale {
+            font-size: 9px;
+            color: #555;
+            font-family: 'Courier New', monospace;
+        }
+
+        .channel-canvas-wrapper {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            background: #000;
+        }
+
+        .channel-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .y-axis-labels {
+            position: absolute;
+            right: 5px;
+            top: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .y-axis-labels span {
+            font-size: 8px;
+            font-family: 'Courier New', monospace;
+            color: #444;
+        }
+
+        .time-axis {
+            height: 25px;
+            background: #0a0a0a;
+            border-top: 1px solid #222;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            position: relative;
+        }
+
+        .time-axis-inner {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .time-axis-label {
+            font-size: 9px;
+            font-family: 'Courier New', monospace;
+            color: #555;
+        }
+
+        .time-axis-title {
+            position: absolute;
+            right: 10px;
+            font-size: 10px;
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        .waiting-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px 50px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .waiting-message h2 {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 10px;
+            font-weight: 400;
+        }
+
+        .waiting-message .pulse {
+            display: inline-block;
+            color: var(--accent-green);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .signal-viewer-header {
+            height: 30px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+        }
+
+        .signal-viewer-header span {
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            color: #666;
+        }
+
+        .signal-viewer-header .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .signal-viewer-header .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+        }
+
+        .signal-viewer-header .live-dot.active {
+            background: #ff4444;
+            box-shadow: 0 0 8px #ff4444;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .signal-controls {
+            background: var(--bg-secondary);
+            padding: 12px 15px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .signal-controls-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .signal-controls-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .signal-controls-right {
+            display: flex;
+            gap: 20px;
+        }
+
+        .resizer {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.08);
+            z-index: 20;
+            user-select: none;
+        }
+
+        .resizer:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .resizer.active {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .resizer-left,
+        .resizer-right {
+            width: 10px;
+            cursor: col-resize;
+            top: 0;
+            bottom: 0;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+        }
+
+        .resizer-bottom {
+            height: 6px;
+            cursor: row-resize;
+        }
+
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 15px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .stat-value.bpm {
+            color: var(--accent-red);
+        }
+
+        .stat-value.amplitude {
+            color: var(--accent-cyan);
+        }
+
+        .stat-value.packets {
+            color: var(--accent-yellow);
+        }
+
+        /* Right Panel - Register Control */
+        .right-panel {
+            grid-row: 1 / 3;
+        }
+
+        .register-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .register-table th {
+            background: var(--bg-tertiary);
+            padding: 8px 6px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 10px;
+            position: sticky;
+            top: 0;
+        }
+
+        .register-table td {
+            padding: 6px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        .register-name {
+            color: var(--accent-cyan);
+            font-family: 'Courier New', monospace;
+        }
+
+        .register-addr {
+            color: var(--accent-yellow);
+            font-family: 'Courier New', monospace;
+        }
+
+        .register-value {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-green);
+            padding: 4px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            width: 70px;
+            font-size: 11px;
+        }
+
+        .register-value:focus {
+            border-color: var(--accent-green);
+            outline: none;
+        }
+
+        .register-btn {
+            padding: 3px 6px;
+            font-size: 9px;
+            margin: 0 2px;
+        }
+
+        .register-section {
+            margin-bottom: 15px;
+        }
+
+        .register-section-title {
+            font-size: 11px;
+            color: var(--accent-purple);
+            padding: 8px 0;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 5px;
+        }
+
+        .register-actions {
+            display: flex;
+            gap: 8px;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        /* Bottom Panel - Console */
+        .bottom-panel {
+            grid-column: 2;
+            height: 180px;
+        }
+
+        .console-container {
+            height: calc(100% - 45px);
+            overflow-y: auto;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            background: var(--bg-primary);
+        }
+
+        .console-line {
+            padding: 2px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .console-time {
+            color: var(--text-muted);
+            margin-right: 10px;
+        }
+
+        .console-type {
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            margin-right: 8px;
+            text-transform: uppercase;
+        }
+
+        .console-type.data {
+            background: var(--accent-green);
+            color: #000;
+        }
+
+        .console-type.info {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        .console-type.warn {
+            background: var(--accent-yellow);
+            color: #000;
+        }
+
+        .console-type.error {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        .console-message {
+            color: var(--text-primary);
+        }
+
+        .console-actions {
+            display: flex;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .main-container {
+                grid-template-columns: 220px 1fr 360px;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+            }
+
+            .left-panel, .right-panel {
+                grid-row: auto;
+            }
+
+            .bottom-panel {
+                grid-column: 1;
+            }
+        }
+
+        /* Bit field display */
+        .bit-fields {
+            display: flex;
+            gap: 2px;
+        }
+
+        .bit-field {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            font-size: 9px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bit-field:hover {
+            border-color: var(--accent-green);
+        }
+
+        .bit-field.active {
+            background: var(--accent-green);
+            color: #000;
+            border-color: var(--accent-green);
+        }
+
+        .ecg-icon {
+            width: 30px;
+            height: 20px;
+        }
+
+        .ecg-icon path {
+            fill: none;
+            stroke: var(--accent-green);
+            stroke-width: 2;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title">
+            <svg class="ecg-icon" viewBox="0 0 60 30">
+                <path d="M0,15 L10,15 L15,5 L20,25 L25,10 L30,20 L35,15 L60,15" />
+            </svg>
+            <div>
+                <h1>ADS1299 Universal Monitoring System</h1>
+            </div>
+        </div>
+        <div class="header-controls">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">Disconnected</span>
+            </div>
+            <div class="control-group">
+                <label>Port</label>
+                <input type="text" id="serialPort" list="portList" placeholder="COMx or /dev/tty..." style="width: 140px;">
+                <datalist id="portList"></datalist>
+                <button class="btn" onclick="refreshPorts()" style="padding: 6px 8px;" title="Refresh Serial Ports">↻</button>
+            </div>
+            <div class="control-group">
+                <label>Baud</label>
+                <input type="number" id="baudRate" value="115200" list="baudList" style="width: 100px;">
+                <datalist id="baudList">
+                    <option value="115200">
+                    <option value="230400">
+                    <option value="460800">
+                    <option value="921600">
+                    <option value="1000000">
+                    <option value="2000000">
+                    <option value="3000000">
+                </datalist>
+            </div>
+            <div class="sps-display" id="spsDisplay">250 SPS</div>
+            <button class="btn btn-primary" id="connectBtn" onclick="toggleConnection()">Connect</button>
+            <button class="btn btn-danger" id="disconnectBtn" onclick="disconnect()" style="display:none;">Disconnect</button>
+            <div class="time-display" id="timeDisplay">00:00:00</div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Panel - Configuration -->
+        <div class="panel left-panel">
+            <div class="panel-header">Device Configuration</div>
+            <div class="panel-content">
+                <!-- Signal Control -->
+                <div class="config-card">
+                    <div class="config-card-header">Signal Control</div>
+                    <div class="config-card-body">
+                        <div class="config-row">
+                            <span class="config-label">Sampling Rate</span>
+                            <select id="samplingRate" onchange="updateSPS()">
+                                <option value="250">250 SPS</option>
+                                <option value="500">500 SPS</option>
+                                <option value="1000">1000 SPS</option>
+                                <option value="2000">2000 SPS</option>
+                                <option value="4000">4000 SPS</option>
+                                <option value="8000">8000 SPS</option>
+                                <option value="16000">16000 SPS</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Gain</span>
+                            <select id="gainControl">
+                                <option value="1">1x</option>
+                                <option value="2">2x</option>
+                                <option value="4">4x</option>
+                                <option value="6">6x</option>
+                                <option value="8">8x</option>
+                                <option value="12">12x</option>
+                                <option value="24" selected>24x</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Lead-Off</span>
+                            <div class="lead-off-indicator">
+                                <div class="lead-off-dot" id="leadOffDot"></div>
+                                <span id="leadOffStatus">OK</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <span class="config-label" style="display: block; margin-bottom: 8px;">Channels</span>
+                            <div class="channel-toggles" id="channelToggles">
+                                <!-- Generated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signal Processing -->
+                <div class="config-card">
+                    <div class="config-card-header">Signal Processing</div>
+                    <div class="config-card-body">
+                        <div class="config-row">
+                            <span class="config-label">High Pass Filter</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="hpFilter" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Low Pass Filter</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="lpFilter" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Notch Filter</span>
+                            <select id="notchFilter">
+                                <option value="off">Off</option>
+                                <option value="50" selected>50 Hz</option>
+                                <option value="60">60 Hz</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Baseline Removal</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="baselineRemoval">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Noise Suppression</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="noiseSuppression">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div class="resizer resizer-left" data-resizer="left"></div>
+
+        <!-- Center Panel - Signal Viewer -->
+        <div class="panel center-panel">
+            <div class="panel-header">Signal Viewer - 8 Channel Bio-signal  </div>
+            <div class="signal-viewer" id="signalViewer">
+                <div class="signal-viewer-header">
+                    <div class="live-indicator">
+                        <div class="live-dot" id="liveDot"></div>
+                        <span id="liveText">STANDBY</span>
+                    </div>
+                </div>
+                <div class="signal-canvas-container" id="signalCanvasContainer">
+                    <!-- Channels generated by JS -->
+                </div>
+                <div class="time-axis" id="timeAxis">
+                    <div class="time-axis-inner" id="timeAxisInner">
+                        <!-- Time labels generated by JS -->
+                    </div>
+                    <span class="time-axis-title">Time (seconds)</span>
+                </div>
+                <div class="waiting-message" id="waitingMessage">
+                    <h2><span class="pulse">●</span> Waiting for ECG Data...</h2>
+                    <p style="color: #555; font-size: 12px;">Enable simulation or connect to ADS1299 device</p>
+                </div>
+            </div>
+            <div class="signal-controls">
+                <div class="signal-controls-left">
+                <div class="signal-controls-row">
+                    <button class="btn btn-primary" id="startBtn" onclick="startStreaming()">Start Streaming</button>
+                    <button class="btn" id="stopBtn" onclick="stopStreaming()" disabled>Stop Streaming</button>
+                    <button class="btn" id="pauseBtn" onclick="togglePause()" disabled>Pause</button>
+                </div>
+                <div class="signal-controls-row">
+                    <button class="btn" onclick="clearGraph()">Clear Graph</button>
+                    <button class="btn" onclick="exportData()">Export Data</button>
+                    <button class="btn" id="serverRecordBtn" onclick="toggleServerRecording()">Record to Server</button>
+                </div>
+            </div>
+                <div class="signal-controls-right">
+                    <div class="stat-box">
+                        <span class="stat-label">Heart Rate</span>
+                        <span class="stat-value bpm" id="heartRateValue">-- BPM</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Amplitude</span>
+                        <span class="stat-value amplitude" id="amplitudeValue">-- µV</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Packets/s</span>
+                        <span class="stat-value packets" id="packetRateValue">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="resizer resizer-right" data-resizer="right"></div>
+
+        <!-- Right Panel - Register Control -->
+        <div class="panel right-panel">
+            <div class="panel-header">Real-Time Bio-signal Acquisition AFE Board Register Control</div>
+            <div class="panel-content" style="padding: 0;">
+                <div id="registerContainer">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+            <div class="register-actions">
+                <button class="btn" onclick="readAllRegisters()">Read All</button>
+                <button class="btn btn-primary" onclick="writeAllRegisters()">Write All</button>
+                <button class="btn btn-danger" onclick="resetRegisters()">Reset</button>
+            </div>
+        </div>
+
+        <!-- Bottom Panel - Console -->
+        <div class="panel bottom-panel">
+            <div class="panel-header">Data Console</div>
+            <div class="console-container" id="consoleContainer">
+                <!-- Console lines generated by JS -->
+            </div>
+            <div class="console-actions">
+                <button class="btn" onclick="clearConsole()">Clear Console</button>
+                <button class="btn" onclick="exportLogs()">Export Logs</button>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary);">
+                    <input type="checkbox" id="autoScroll" checked> Auto-scroll
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let isConnected = false;
+        let isStreaming = false;
+        let isPaused = false;
+        let animationFrameId = null;
+        let packetCount = 0;
+        let lastPacketTime = Date.now();
+        let dataReceived = false;
+        let isServerRecording = false;
+
+        // Channel colors
+        const channelColors = [
+            '#00ff88', // Green
+            '#00ff88', // Green
+            '#00ff88', // Green
+            '#00ff88', // Green
+            '#00ff88', // Green
+            '#00ff88', // Green
+            '#00ff88', // Green
+            '#00ff88'  // Green
+        ];
+
+        // Channel data buffers
+        const channelData = Array(8).fill(null).map(() => []);
+        const maxDataPoints = 500;
+
+        // Canvases
+        let canvases = [];
+        let contexts = [];
+
+        // ADS1299 Registers
+        const registers = {
+            global: [
+                { name: 'ID', addr: '0x00', value: '0x3E', bits: [0,0,1,1,1,1,1,0] },
+                { name: 'CONFIG1', addr: '0x01', value: '0x96', bits: [1,0,0,1,0,1,1,0] },
+                { name: 'CONFIG2', addr: '0x02', value: '0xC0', bits: [1,1,0,0,0,0,0,0] },
+                { name: 'CONFIG3', addr: '0x03', value: '0xEC', bits: [1,1,1,0,1,1,0,0] },
+                { name: 'LOFF', addr: '0x04', value: '0x00', bits: [0,0,0,0,0,0,0,0] }
+            ],
+            channel: [
+                { name: 'CH1SET', addr: '0x05', value: '0x60', bits: [0,1,1,0,0,0,0,0] },
+                { name: 'CH2SET', addr: '0x06', value: '0x60', bits: [0,1,1,0,0,0,0,0] },
+                { name: 'CH3SET', addr: '0x07', value: '0x60', bits: [0,1,1,0,0,0,0,0] },
+                { name: 'CH4SET', addr: '0x08', value: '0x60', bits: [0,1,1,0,0,0,0,0] },
+                { name: 'CH5SET', addr: '0x09', value: '0x60', bits: [0,1,1,0,0,0,0,0] },
+                { name: 'CH6SET', addr: '0x0A', value: '0x60', bits: [0,1,1,0,0,0,0,0] },
+                { name: 'CH7SET', addr: '0x0B', value: '0x60', bits: [0,1,1,0,0,0,0,0] },
+                { name: 'CH8SET', addr: '0x0C', value: '0x60', bits: [0,1,1,0,0,0,0,0] }
+            ],
+            bias: [
+                { name: 'BIAS_SENSP', addr: '0x0D', value: '0xFF', bits: [1,1,1,1,1,1,1,1] },
+                { name: 'BIAS_SENSN', addr: '0x0E', value: '0xFF', bits: [1,1,1,1,1,1,1,1] },
+                { name: 'LOFF_SENSP', addr: '0x0F', value: '0x00', bits: [0,0,0,0,0,0,0,0] },
+                { name: 'LOFF_SENSN', addr: '0x10', value: '0x00', bits: [0,0,0,0,0,0,0,0] },
+                { name: 'LOFF_FLIP', addr: '0x11', value: '0x00', bits: [0,0,0,0,0,0,0,0] }
+            ],
+            misc: [
+                { name: 'GPIO', addr: '0x14', value: '0x0F', bits: [0,0,0,0,1,1,1,1] },
+                { name: 'MISC1', addr: '0x15', value: '0x00', bits: [0,0,0,0,0,0,0,0] },
+                { name: 'MISC2', addr: '0x16', value: '0x00', bits: [0,0,0,0,0,0,0,0] },
+                { name: 'CONFIG4', addr: '0x17', value: '0x00', bits: [0,0,0,0,0,0,0,0] },
+                { name: 'SRB2', addr: '0x18', value: '0x00', bits: [0,0,0,0,0,0,0,0] }
+            ]
+        };
+
+        // Console logs
+        const consoleLogs = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initChannelToggles();
+            initSignalCanvases();
+            initRegisterTable();
+            initPanelResizers();
+            updateTime();
+            setInterval(updateTime, 1000);
+            setInterval(updatePacketRate, 1000);
+            logToConsole('info', 'System initialized. Ready to connect.');
+        });
+
+        function initChannelToggles() {
+            const container = document.getElementById('channelToggles');
+            for (let i = 1; i <= 8; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'channel-btn active';
+                btn.textContent = `CH${i}`;
+                btn.dataset.channel = i - 1;
+                btn.onclick = () => toggleChannel(i - 1, btn);
+                container.appendChild(btn);
+            }
+        }
+
+        function toggleChannel(index, btn) {
+            btn.classList.toggle('active');
+            const row = document.querySelectorAll('.channel-row')[index];
+            if (row) {
+                row.style.opacity = btn.classList.contains('active') ? '1' : '0.3';
+            }
+        }
+
+        // Channel names for leads
+        const channelNames = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII '];
+
+        function initSignalCanvases() {
+            const container = document.getElementById('signalCanvasContainer');
+            container.innerHTML = '';
+            canvases = [];
+            contexts = [];
+            
+            for (let i = 0; i < 8; i++) {
+                const row = document.createElement('div');
+                row.className = 'channel-row';
+                row.id = `channel-row-${i}`;
+                
+                const label = document.createElement('div');
+                label.className = 'channel-label';
+                label.innerHTML = `
+                    <span class="channel-number">CH${i + 1}</span>
+                    <span class="channel-name" style="color: ${channelColors[i]}">${channelNames[i]}</span>
+                    <span class="channel-value" id="ch-value-${i}">0.00 uV</span>
+                    <span class="channel-scale">±1000 uV</span>
+                `;
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'channel-canvas-wrapper';
+                
+                const canvas = document.createElement('canvas');
+                canvas.className = 'channel-canvas';
+                canvas.id = `canvas-${i}`;
+                
+                // Y-axis labels
+                const yLabels = document.createElement('div');
+                yLabels.className = 'y-axis-labels';
+                yLabels.innerHTML = `
+                    <span>+1000</span>
+                    <span>0</span>
+                    <span>-1000</span>
+                `;
+                
+                wrapper.appendChild(canvas);
+                wrapper.appendChild(yLabels);
+                row.appendChild(label);
+                row.appendChild(wrapper);
+                container.appendChild(row);
+                
+                canvases.push(canvas);
+            }
+            
+            // Setup canvases after DOM update
+            setTimeout(setupCanvases, 100);
+            
+            // Initialize time axis
+            initTimeAxis();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                setupCanvases();
+                initTimeAxis();
+            });
+        }
+
+        function setupCanvases() {
+            canvases.forEach((canvas, i) => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * window.devicePixelRatio;
+                canvas.height = rect.height * window.devicePixelRatio;
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+                contexts[i] = canvas.getContext('2d');
+                contexts[i].scale(window.devicePixelRatio, window.devicePixelRatio);
+            });
+        }
+
+        function initTimeAxis() {
+            const container = document.getElementById('timeAxisInner');
+            const timeWindow = 5; // 5 seconds window
+            const numLabels = 11;
+            container.innerHTML = '';
+            
+            for (let i = 0; i < numLabels; i++) {
+                const label = document.createElement('span');
+                label.className = 'time-axis-label';
+                label.textContent = ((timeWindow / (numLabels - 1)) * i).toFixed(1);
+                container.appendChild(label);
+            }
+        }
+
+        function initPanelResizers() {
+            const container = document.querySelector('.main-container');
+            const leftPanel = container.querySelector('.left-panel');
+            const centerPanel = container.querySelector('.center-panel');
+            const rightPanel = container.querySelector('.right-panel');
+            const bottomPanel = container.querySelector('.bottom-panel');
+
+            const minLeft = 180;
+            const minCenter = 240;
+            const minRight = 260;
+            const minBottom = 120;
+
+            let active = null;
+            let startX = 0;
+            let startY = 0;
+            let startSizes = null;
+
+            const resizers = container.querySelectorAll('.resizer');
+            const resizerLeft = container.querySelector('.resizer-left');
+            const resizerRight = container.querySelector('.resizer-right');
+            const resizerBottom = container.querySelector('.resizer-bottom');
+
+            function updateResizerPositions() {
+                const containerRect = container.getBoundingClientRect();
+                const leftRect = leftPanel.getBoundingClientRect();
+                const centerRect = centerPanel.getBoundingClientRect();
+
+                if (resizerLeft) {
+                    resizerLeft.style.left = `${leftRect.right - containerRect.left - 3}px`;
+                }
+                if (resizerRight) {
+                    resizerRight.style.left = `${centerRect.right - containerRect.left - 3}px`;
+                }
+                if (resizerBottom) {
+                    resizerBottom.style.top = `${centerRect.bottom - containerRect.top - 3}px`;
+                    resizerBottom.style.left = `${centerRect.left - containerRect.left}px`;
+                    resizerBottom.style.width = `${centerRect.width}px`;
+                }
+            }
+
+            function startDrag(e, type) {
+                active = type;
+                startX = e.clientX;
+                startY = e.clientY;
+                const leftWidth = leftPanel.getBoundingClientRect().width;
+                const centerWidth = centerPanel.getBoundingClientRect().width;
+                const rightWidth = rightPanel.getBoundingClientRect().width;
+                const topHeight = centerPanel.getBoundingClientRect().height;
+                const bottomHeight = bottomPanel.getBoundingClientRect().height;
+                startSizes = { leftWidth, centerWidth, rightWidth, topHeight, bottomHeight };
+                document.body.style.userSelect = 'none';
+                resizers.forEach(r => r.classList.remove('active'));
+                const activeResizer = container.querySelector(`[data-resizer="${type}"]`);
+                if (activeResizer) activeResizer.classList.add('active');
+                window.addEventListener('mousemove', onDrag);
+                window.addEventListener('mouseup', stopDrag);
+            }
+
+            resizers.forEach(resizer => {
+                resizer.addEventListener('mousedown', (e) => {
+                    startDrag(e, resizer.dataset.resizer);
+                });
+            });
+
+            function onDrag(e) {
+                if (!active || !startSizes) return;
+
+                if (active === 'left') {
+                    const delta = e.clientX - startX;
+                    let leftW = Math.max(minLeft, Math.min(startSizes.leftWidth + delta, startSizes.leftWidth + startSizes.centerWidth - minCenter));
+                    let centerW = startSizes.leftWidth + startSizes.centerWidth - leftW;
+                    container.style.gridTemplateColumns = `${leftW}px ${centerW}px ${startSizes.rightWidth}px`;
+                } else if (active === 'right') {
+                    const delta = e.clientX - startX;
+                    let rightW = Math.max(minRight, Math.min(startSizes.rightWidth - delta, startSizes.centerWidth + startSizes.rightWidth - minCenter));
+                    let centerW = startSizes.centerWidth + startSizes.rightWidth - rightW;
+                    container.style.gridTemplateColumns = `${startSizes.leftWidth}px ${centerW}px ${rightW}px`;
+                } else if (active === 'bottom') {
+                    const delta = e.clientY - startY;
+                    let topH = Math.max(minCenter, Math.min(startSizes.topHeight + delta, startSizes.topHeight + startSizes.bottomHeight - minBottom));
+                    let bottomH = startSizes.topHeight + startSizes.bottomHeight - topH;
+                    container.style.gridTemplateRows = `${topH}px ${bottomH}px`;
+                }
+
+                updateResizerPositions();
+            }
+
+            function stopDrag() {
+                active = null;
+                startSizes = null;
+                resizers.forEach(r => r.classList.remove('active'));
+                document.body.style.userSelect = '';
+                window.removeEventListener('mousemove', onDrag);
+                window.removeEventListener('mouseup', stopDrag);
+            }
+
+            window.addEventListener('resize', updateResizerPositions);
+            updateResizerPositions();
+        }
+
+        function initRegisterTable() {
+            const container = document.getElementById('registerContainer');
+            const sections = [
+                { title: 'Global Registers', data: registers.global },
+                { title: 'Channel Registers', data: registers.channel },
+                { title: 'Bias & Lead-Off', data: registers.bias },
+                { title: 'GPIO & Misc', data: registers.misc }
+            ];
+
+            let html = '';
+            sections.forEach(section => {
+                html += `
+                    <div class="register-section">
+                        <div class="register-section-title">${section.title}</div>
+                        <table class="register-table">
+                            <thead>
+                                <tr>
+                                    <th>Register</th>
+                                    <th>Addr</th>
+                                    <th>Bits [7:0]</th>
+                                    <th>Value</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${section.data.map(reg => `
+                                    <tr>
+                                        <td class="register-name">${reg.name}</td>
+                                        <td class="register-addr">${reg.addr}</td>
+                                        <td>
+                                            <div class="bit-fields">
+                                                ${reg.bits.map((bit, idx) => `
+                                                    <div class="bit-field ${bit ? 'active' : ''}" 
+                                                         onclick="toggleBit('${reg.name}', ${7-idx})"
+                                                         title="Bit ${7-idx}">${bit}</div>
+                                                `).join('')}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="register-value" 
+                                                   id="reg-${reg.name}" value="${reg.value}"
+                                                   onkeydown="handleRegisterInput(event, '${reg.name}')">
+                                        </td>
+                                        <td>
+                                            <button class="btn register-btn" onclick="writeRegister('${reg.name}')">W</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        } 
+
+        function toggleBit(regName, bitIndex) {
+            for (const section of Object.values(registers)) {
+                const reg = section.find(r => r.name === regName);
+                if (reg) {
+                    reg.bits[7 - bitIndex] = reg.bits[7 - bitIndex] ? 0 : 1;
+                    const value = parseInt(reg.bits.join(''), 2);
+                    reg.value = '0x' + value.toString(16).toUpperCase().padStart(2, '0');
+                    document.getElementById(`reg-${regName}`).value = reg.value;
+                    initRegisterTable();
+                    logToConsole('info', `${regName} bit ${bitIndex} toggled. New value: ${reg.value}`);
+                    break;
+                }
+            }
+        }
+
+        function updateRegisterFromInput(regName) {
+            const input = document.getElementById(`reg-${regName}`);
+            const value = parseInt(input.value, 16);
+            if (!isNaN(value) && value >= 0 && value <= 255) {
+                for (const section of Object.values(registers)) {
+                    const reg = section.find(r => r.name === regName);
+                    if (reg) {
+                        reg.value = '0x' + value.toString(16).toUpperCase().padStart(2, '0');
+                        reg.bits = value.toString(2).padStart(8, '0').split('').map(Number);
+                        initRegisterTable();
+                        break;
+                    }
+                }
+            }
+        }
+
+        function readRegister(name) {
+            logToConsole('info', `Reading register ${name}...`);
+            setTimeout(() => {
+                for (const section of Object.values(registers)) {
+                    const reg = section.find(r => r.name === name);
+                    if (reg) {
+                        logToConsole('data', `${name} (${reg.addr}) = ${reg.value}`);
+                        break;
+                    }
+                }
+            }, 100);
+        }
+
+        function writeRegister(name) {
+            for (const section of Object.values(registers)) {
+                const reg = section.find(r => r.name === name);
+                if (reg) {
+                    // Construct ADS1299 Write Register Command
+                    // Opcode: 0x40 | Address
+                    const addr = parseInt(reg.addr, 16);
+                    const val = parseInt(reg.value, 16);
+                    const opcode = 0x40 | addr;
+                    
+                    // Command: [Opcode] [numRegs-1] [Value]
+                    // We are writing 1 register, so numRegs-1 = 0x00
+                    const hexStr = opcode.toString(16).padStart(2, '0') + '00' + val.toString(16).padStart(2, '0');
+                    
+                    logToConsole('info', `Writing ${reg.value} to ${name} (${reg.addr})... (CMD: ${hexStr})`);
+                    
+                    if(isConnected) {
+                        sendHex(hexStr);
+                        logToConsole('data', `${name} write command sent`);
+                    } else {
+                        logToConsole('warn', 'Device not connected');
+                    }
+                    break;
+                }
+            }
+        }
+
+        function readAllRegisters() {
+            logToConsole('info', 'Reading all registers...');
+            Object.values(registers).flat().forEach((reg, i) => {
+                setTimeout(() => {
+                    logToConsole('data', `${reg.name} (${reg.addr}) = ${reg.value}`);
+                }, i * 50);
+            });
+        }
+
+        function writeAllRegisters() {
+            logToConsole('info', 'Writing all registers...');
+            setTimeout(() => {
+                logToConsole('data', 'All registers written successfully');
+            }, 500);
+        }
+
+        function resetRegisters() {
+            logToConsole('warn', 'Resetting all registers to default values...');
+            setTimeout(() => {
+                logToConsole('info', 'Registers reset complete');
+                initRegisterTable();
+            }, 300);
+        }
+
+        function toggleConnection() {
+            if (!isConnected) {
+                connect();
+            }
+        }
+
+        function connect() {
+            const port = document.getElementById('serialPort').value;
+            const baud = document.getElementById('baudRate').value;
+            
+            logToConsole('info', `Connecting to ${document.getElementById('serialPort').options[document.getElementById('serialPort').selectedIndex].text} @ ${baud} baud...`);
+            
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    action: "connect",
+                    path: port,
+                    baudRate: baud
+                }));
+            } else {
+                logToConsole('error', 'WebSocket not connected to server');
+            }
+        }
+
+        function disconnect() {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ action: "disconnect" }));
+            }
+        }
+
+        function startStreaming() {
+            if (!isConnected) {
+                logToConsole('warn', 'Please connect to device');
+                return;
+            }
+            
+            // Send 'b' for begin/binary or ADS1299 RDATAC (0x10) + START (0x08)
+            // Assuming firmware accepts 'b' char to start streaming (common in bio-boards)
+            // If using raw ADS1299, un-comment the hex version
+            // sendHex("0810"); 
+            sendCommand('b');
+
+            isStreaming = true;
+            isPaused = false;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('waitingMessage').style.display = 'none';
+            
+            // Update live indicator
+            document.getElementById('liveDot').classList.add('active');
+            document.getElementById('liveText').textContent = 'LIVE';
+            document.getElementById('liveText').style.color = '#ff4444';
+            
+            dataReceived = true;
+            
+            logToConsole('info', 'Streaming started');
+            startAnimation();
+        }
+
+        function stopStreaming() {
+            isStreaming = false;
+            isPaused = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('pauseBtn').textContent = 'Pause';
+            
+            // Send 's' for stop
+            sendCommand('s');
+            // Or raw: sendHex("0A11"); // STOP + SDATAC
+
+            // Update live indicator
+            document.getElementById('liveDot').classList.remove('active');
+            document.getElementById('liveText').textContent = 'STANDBY';
+            document.getElementById('liveText').style.color = '#666';
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            
+            logToConsole('info', 'Streaming stopped');
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').textContent = isPaused ? 'Resume' : 'Pause';
+            logToConsole('info', isPaused ? 'Visualization paused' : 'Visualization resumed');
+        }
+
+        function clearGraph() {
+            channelData.forEach(ch => ch.length = 0);
+            canvases.forEach((canvas, i) => {
+                const ctx = contexts[i];
+                if (ctx) {
+                    const rect = canvas.parentElement.getBoundingClientRect();
+                    ctx.clearRect(0, 0, rect.width, rect.height);
+                }
+            });
+            logToConsole('info', 'Graph cleared');
+        }
+
+        function sendCommand(data) {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ action: "send", data: data }));
+            }
+        }
+
+        function sendHex(hexString) {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ action: "sendHex", data: hexString }));
+            }
+        }
+
+        function startAnimation() {
+            let startTime = Date.now();
+            
+            function animate() {
+                if (!isStreaming) return;
+                
+                if (!isPaused) {
+                    // Update displays
+                    // Removed fake random updates. Real calculation would go here.
+                    document.getElementById('heartRateValue').textContent = '-- BPM';
+                    document.getElementById('amplitudeValue').textContent = '-- µV';
+                    
+                    // Draw waveforms
+                    drawWaveforms();
+                }
+                
+                animationFrameId = requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+
+        function drawWaveforms() {
+            canvases.forEach((canvas, i) => {
+                const ctx = contexts[i];
+                if (!ctx) return;
+                
+                const rect = canvas.parentElement.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+                const data = channelData[i];
+                
+                // Clear with solid black
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Draw major grid (OpenBCI style - subtle green)
+                const majorGridSize = 50;
+                ctx.strokeStyle = 'rgba(0, 60, 30, 0.8)';
+                ctx.lineWidth = 0.5;
+                
+                for (let x = 0; x <= width; x += majorGridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.stroke();
+                }
+                for (let y = 0; y <= height; y += majorGridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(width, y);
+                    ctx.stroke();
+                }
+                
+                // Draw minor grid
+                const minorGridSize = 10;
+                ctx.strokeStyle = 'rgba(0, 40, 20, 0.4)';
+                ctx.lineWidth = 0.3;
+                
+                for (let x = 0; x <= width; x += minorGridSize) {
+                    if (x % majorGridSize !== 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, height);
+                        ctx.stroke();
+                    }
+                }
+                for (let y = 0; y <= height; y += minorGridSize) {
+                    if (y % majorGridSize !== 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(width, y);
+                        ctx.stroke();
+                    }
+                }
+                
+                // Draw center baseline (brighter)
+                ctx.strokeStyle = 'rgba(0, 100, 50, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, height / 2);
+                ctx.lineTo(width, height / 2);
+                ctx.stroke();
+                
+                if (data.length < 2) return;
+                
+                // Update channel value display
+                const lastValue = data[data.length - 1] || 0;
+                const valueDisplay = document.getElementById(`ch-value-${i}`);
+                if (valueDisplay) {
+                    valueDisplay.textContent = (lastValue * 1).toFixed(2) + ' uV';
+                    valueDisplay.style.color = channelColors[i];
+                }
+                
+                // Draw waveform with glow effect (OpenBCI style)
+                const xStep = width / maxDataPoints;
+                const yCenter = height / 2;
+                const yScale = (height * 0.4) / 1000; // Scale for +/- 1000 uV
+                
+                // Glow layer
+                ctx.strokeStyle = channelColors[i];
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                
+                for (let j = 0; j < data.length; j++) {
+                    const x = j * xStep;
+                    const y = yCenter - data[j] * yScale;
+                    if (j === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                
+                // Main trace
+                ctx.globalAlpha = 1;
+                ctx.lineWidth = 1.5;
+                ctx.shadowColor = channelColors[i];
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                
+                for (let j = 0; j < data.length; j++) {
+                    const x = j * xStep;
+                    const y = yCenter - data[j] * yScale;
+                    if (j === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                // Draw current position marker (vertical line at end)
+                if (data.length > 0) {
+                    const markerX = (data.length - 1) * xStep;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(markerX, 0);
+                    ctx.lineTo(markerX, height);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function updateSPS() {
+            const sps = document.getElementById('samplingRate').value;
+            document.getElementById('spsDisplay').textContent = sps + ' SPS';
+            logToConsole('info', `Sampling rate changed to ${sps} SPS`);
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const time = now.toTimeString().split(' ')[0];
+            document.getElementById('timeDisplay').textContent = time;
+        }
+
+        function updatePacketRate() {
+            const now = Date.now();
+            const elapsed = (now - lastPacketTime) / 1000;
+            const rate = Math.round(packetCount / elapsed);
+            document.getElementById('packetRateValue').textContent = isStreaming ? rate : 0;
+            packetCount = 0;
+            lastPacketTime = now;
+        }
+
+        function logToConsole(type, message) {
+            const now = new Date();
+            const time = now.toTimeString().split(' ')[0] + '.' + now.getMilliseconds().toString().padStart(3, '0');
+            
+            consoleLogs.push({ time, type, message });
+            
+            const container = document.getElementById('consoleContainer');
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.innerHTML = `
+                <span class="console-time">${time}</span>
+                <span class="console-type ${type}">${type}</span>
+                <span class="console-message">${message}</span>
+            `;
+            container.appendChild(line);
+            
+            if (document.getElementById('autoScroll').checked) {
+                container.scrollTop = container.scrollHeight;
+            }
+            
+            // Limit console lines
+            while (container.children.length > 500) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        function clearConsole() {
+            document.getElementById('consoleContainer').innerHTML = '';
+            consoleLogs.length = 0;
+            logToConsole('info', 'Console cleared');
+        }
+
+        function exportData() {
+            let csvContent = "CH1,CH2,CH3,CH4,CH5,CH6,CH7,CH8\n";
+            
+            const maxLength = Math.max(...channelData.map(ch => ch.length));
+            
+            for (let i = 0; i < maxLength; i++) {
+                const row = [];
+                for (let ch = 0; ch < 8; ch++) {
+                    row.push(channelData[ch][i] !== undefined ? channelData[ch][i] : "");
+                }
+                csvContent += row.join(",") + "\n";
+            }
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ecg_data_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            logToConsole('info', 'Data exported successfully');
+        }
+
+        function exportLogs() {
+            const text = consoleLogs.map(log => `[${log.time}] [${log.type.toUpperCase()}] ${log.message}`).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ecg_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            logToConsole('info', 'Logs exported successfully');
+        }
+
+        function toggleServerRecording() {
+            if (!isConnected) {
+                logToConsole('warn', 'Please connect to device first');
+                return;
+            }
+            
+            const btn = document.getElementById('serverRecordBtn');
+            isServerRecording = !isServerRecording;
+            
+            if (isServerRecording) {
+                socket.send(JSON.stringify({ action: "start_record" }));
+                btn.textContent = "Stop Recording";
+                btn.classList.add('btn-danger');
+            } else {
+                socket.send(JSON.stringify({ action: "stop_record" }));
+                btn.textContent = "Record to Server";
+                btn.classList.remove('btn-danger');
+            }
+        }
+
+        function refreshPorts() {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ action: "get_ports" }));
+            }
+        }
+
+        // --- WebSocket Connection ---
+        const wsHost = window.location.hostname || "localhost";
+        // Allow defining host via URL param, e.g., index.html?host=192.168.1.100
+        const params = new URLSearchParams(window.location.search);
+        const wsHost = params.get('host') || window.location.hostname || "localhost";
+        // const socket = new WebSocket(`ws://${wsHost}:3000`);
+
+        const socket = new WebSocket(`ws://localhost:8000/ws/ecg`);
+
+        socket.onopen = function()
+        {
+            logToConsole("info", "Connected to WebSocket server");
+            // Auto-fetch ports on connect
+            refreshPorts();
+        }
+
+        socket.onmessage = function(event)
+        {
+            // Try to parse as JSON (Status message)
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === "STATUS") {
+                    if (msg.connected) {
+                        isConnected = true;
+                        document.getElementById('statusDot').classList.add('connected');
+                        document.getElementById('statusText').textContent = 'Connected';
+                        document.getElementById('connectBtn').style.display = 'none';
+                        document.getElementById('disconnectBtn').style.display = 'inline-block';
+                        logToConsole('info', msg.msg);
+                    } else {
+                        isConnected = false;
+                        stopStreaming();
+                        document.getElementById('statusDot').classList.remove('connected');
+                        document.getElementById('statusText').textContent = 'Disconnected';
+                        document.getElementById('connectBtn').style.display = 'inline-block';
+                        document.getElementById('disconnectBtn').style.display = 'none';
+                        logToConsole('info', msg.msg);
+                        clearGraph();
+                    }
+                    return;
+                } else if (msg.type === "ERROR") {
+                    logToConsole('error', msg.msg);
+                    return;
+                } else if (msg.type === "PORTS") {
+                    const list = document.getElementById('portList');
+                    list.innerHTML = '';
+                    msg.ports.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.path;
+                        option.textContent = p.manufacturer ? `${p.path} (${p.manufacturer})` : p.path;
+                        list.appendChild(option);
+                    });
+                    logToConsole('info', `Found ${msg.ports.length} serial ports available`);
+                    return;
+                }
+            } catch (e) {
+                // Not JSON, treat as data
+            }
+
+            // Handle incoming real data (assume simple number or CSV)
+            const parts = event.data.trim().split(',');
+            
+            // If we are NOT simulating, plot this data
+            if (isStreaming || dataReceived) {
+                 // Get current gain
+                 const gain = parseInt(document.getElementById('gainControl').value) || 24;
+                 // Formula: ((raw * 4.5) / (2^23 * gain)) * 10^6
+                 const scaleFactor = (4.5 / (8388608 * gain)) * 1000000;
+
+                 parts.forEach((val, idx) => {
+                    if (idx < 8 && !isNaN(val)) {
+                        packetCount++;
+                        // Convert raw data to uV
+                        const uV = parseFloat(val) * scaleFactor;
+                        channelData[idx].push(uV);
+                        if(channelData[idx].length > maxDataPoints) channelData[idx].shift();
+                    }
+                 });
+            }
+        }
+
+        socket.onerror = function(error)
+        {
+            console.error("WebSocket Error:", error)
+            logToConsole("error", "WebSocket Error");
+        }
+
+        socket.onclose = function()
+        {
+            logToConsole("warn", "Connection closed")
+            document.getElementById('statusDot').classList.remove('connected');
+            clearGraph();
+        }
+    </script>
+</body>
+</html>
