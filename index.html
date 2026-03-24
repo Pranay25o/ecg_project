@@ -1947,7 +1947,7 @@
         const wsHost = params.get('host') || window.location.hostname || "localhost";
         // const socket = new WebSocket(`ws://${wsHost}:3000`);
 
-        const socket = new WebSocket(`ws://localhost:8000/ws/ecg`);
+        const socket = new WebSocket(`ws://https://ecg-project-6kya.onrender.com/ws/ecg`);
 
         socket.onopen = function()
         {
